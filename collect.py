@@ -164,7 +164,7 @@ for i in kept:
 print("Kirchen:", len(places), "Pfarrei zugeordnet:", matched)
 
 
-# Tote Links aussortieren: erst Pfarrverbands-Link versuchen, sonst leer lassen
+# Tote Links (404/410) aussortieren: erst Pfarrverbands-Link versuchen, sonst leer lassen
 def alive(url):
     try:
         req = urllib.request.Request(url, headers=UA)
@@ -173,7 +173,7 @@ def alive(url):
     except urllib.error.HTTPError as e:
         return e.code not in (404, 410)
     except Exception:
-        return False
+        return True  # Netzwerk-/SSL-Fehler: Link lieber behalten
 
 
 from concurrent.futures import ThreadPoolExecutor
