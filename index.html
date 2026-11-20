@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gottesdienst-Karte</title>
+<style>
+:root{--bg:#f6f3ee;--panel:#fffdf9;--fg:#231f1a;--mut:#7a7167;--line:#e3ddd3;--map:#e8e4da;--acc:#8c1d2f;--home:#1f6f5c;
+--c-m:#a3242f;--c-b:#6b3fa0;--c-a:#c27a0e;--c-r:#0f7f86;--c-h:#2a5db0;--c-w:#3a8a3f;--c-g:#6d6a66;--c-o:#9b948a}
+@media (prefers-color-scheme:dark){:root{--bg:#17140f;--panel:#201c16;--fg:#efe9df;--mut:#a0978a;--line:#352f26;--map:#1c1913;--acc:#e0677a;--home:#52c3a4;
+--c-m:#e0525e;--c-b:#a98be0;--c-a:#e8a33c;--c-r:#45bcc4;--c-h:#6c9cf0;--c-w:#6cc072;--c-g:#a5a19b;--c-o:#8a847a;color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+h1{font-size:15px;font-weight:650;margin:0}
+.sub{color:var(--mut);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.bar{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.days{display:flex;gap:4px;overflow-x:auto;max-width:100%;scrollbar-width:none}
+.days::-webkit-scrollbar{display:none}
+.day{flex:0 0 auto;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:8px;padding:5px 9px;font:inherit;font-size:13px;cursor:pointer;text-align:center;line-height:1.15}
+.day small{display:block;font-size:10.5px;color:var(--mut)}
+.day[aria-pressed=true]{background:var(--acc);border-color:var(--acc);color:#fff}
+.day[aria-pressed=true] small{color:#ffffffcc}
+.time{display:flex;align-items:center;gap:8px;color:var(--mut);font-size:12px}
+.time input{border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:8px;padding:4px 6px;font:inherit;font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:99px;padding:3px 10px 3px 8px;font:inherit;font-size:12.5px;cursor:pointer}
+.chip i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+.chip[aria-pressed=false]{opacity:.45}
+.chip[aria-pressed=false] i{background:transparent;box-shadow:inset 0 0 0 1.5px var(--c)}
+.mapbox{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--map);height:clamp(380px,calc(100vh - 150px),780px);touch-action:none}
+canvas{display:block;width:100%;height:100%;cursor:grab}
+canvas.drag{cursor:grabbing}
+.tip{position:absolute;pointer-events:none;background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12.5px;box-shadow:0 4px 16px #0003;max-width:260px;z-index:3}
+.tip b{display:block;font-weight:620}.tip span{color:var(--mut)}
+.zoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:4px;z-index:2}
+.zoom button{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:8px;font-size:17px;cursor:pointer;line-height:1}
+.count{position:absolute;left:10px;top:10px;background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:3px 10px;font-size:12px;color:var(--mut);z-index:2}
+.attr{position:absolute;left:0;bottom:0;background:#fffc;color:#333;font-size:10.5px;padding:1px 6px;z-index:2;border-top-right-radius:6px}
+.attr a{color:#0645ad}
+.panel{position:absolute;z-index:4;background:var(--panel);border:1px solid var(--line);box-shadow:0 8px 28px #0003;display:flex;flex-direction:column;left:10px;right:10px;bottom:22px;max-height:58%;border-radius:12px}
+@media(min-width:760px){.panel{left:auto;right:10px;top:50px;bottom:24px;width:340px;max-height:none}.zoom{right:auto;left:10px;top:44px}}
+.ph{padding:11px 12px 8px;border-bottom:1px solid var(--line);position:relative}
+.ph h2{margin:0 26px 2px 0;font-size:15px;font-weight:650;line-height:1.25}
+.ph .ad{color:var(--mut);font-size:12.5px}
+.ph .pf{font-size:12.5px;margin-top:4px}
+.ph a{color:var(--acc)}
+.x{position:absolute;right:6px;top:6px;border:0;background:none;color:var(--mut);font-size:20px;cursor:pointer;width:28px;height:28px;line-height:1}
+.ph a.gm{display:inline-block;margin-top:7px;font-size:13px;font-weight:550;text-decoration:none;border:1px solid var(--acc);color:var(--acc);border-radius:8px;padding:4px 10px}
+.ls{overflow-y:auto;padding:4px 12px 10px;margin:0;list-style:none}
+.ls li{display:grid;grid-template-columns:44px 1fr;gap:2px 8px;padding:7px 0;border-bottom:1px solid var(--line)}
+.ls li:last-child{border:0}
+.ls time{font-variant-numeric:tabular-nums;font-weight:650}
+.ls .t{min-width:0;overflow-wrap:anywhere}
+.ls .tg{font-size:11.5px;color:var(--mut)}
+.ls .nt{grid-column:2;font-size:12px;color:var(--mut);overflow-wrap:anywhere}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;background:var(--c)}
+.msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mut);pointer-events:none;text-align:center;padding:20px}
+@media(max-width:600px){.sub{display:none}}
+</style></head><body>
+<div class="wrap">
+<header><h1>Gottesdienst-Karte</h1><div class="sub" id="sub">Erzbistum München und Freising</div></header>
+<div class="bar">
+ <div class="days" id="days"></div>
+ <div class="time"><label>von <input type="time" id="t1"></label><label>bis <input type="time" id="t2"></label></div>
+</div>
+<div class="chips" id="chips"></div>
+<div class="mapbox" id="box">
+ <canvas id="cv"></canvas>
+ <div class="count" id="count"></div>
+ <div class="zoom"><button id="zi" aria-label="Vergrößern">+</button><button id="zo" aria-label="Verkleinern">−</button><button id="zf" aria-label="Alles zeigen" style="font-size:13px">⤢</button></div>
+ <div class="tip" id="tip" hidden></div>
+ <div class="panel" id="panel" hidden></div>
+ <div class="msg" id="msg">Lade Daten …</div>
+ <div class="attr">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap-Mitwirkende</a></div>
+</div>
+</div>
+<script>
+(function(){
+var CATS=[["m","Hl. Messe"],["b","Beichte"],["a","Anbetung"],["r","Rosenkranz & Andacht"],["h","Stundengebet"],["w","Wort-Gottes-Feier"],["g","Gottesdienst"],["o","Sonstiges"]];
+var LBL={};CATS.forEach(function(c){LBL[c[0]]=c[1]});
+var PRIO="mbarhwgo";
+var WD=["So","Mo","Di","Mi","Do","Fr","Sa"];
+var HOME=[48.2795,11.5705];
+var KMIN=256*Math.pow(2,8),KMAX=256*Math.pow(2,18);
+var D,S={day:0,from:0,to:1439,on:{},sel:-1,hover:-1},moved=false;
+var cv=document.getElementById('cv'),ctx=cv.getContext('2d'),box=document.getElementById('box');
+var W=0,H=0,dpr=1,view={x:0.5,y:0.5,k:KMIN*32};
+var PINS=[];
+var dark=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)');
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function pad(n){return n<10?"0"+n:""+n}
+function hm(v){return pad(Math.floor(v/100))+":"+pad(v%100)}
+function mins(v){return Math.floor(v/100)*60+v%100}
+function classify(t){
+  var s=t.toLowerCase(),r=[];
+  var w=/wort-?gottes|wortgottes|wortliturgie/.test(s);
+  if(/beicht|versöhnung|aussprache/.test(s)&&!/keine beicht/.test(s))r.push("b");
+  if(!w&&/messe|messfeier|eucharistiefeier|eucharistie(?!che)|amt\b|(?<!wort)liturgie|requiem|firmung/.test(s))r.push("m");
+  if(/anbetung|aussetzung|sakramentsandacht|holy hour|eucharistischer segen/.test(s))r.push("a");
+  if(/rosenkranz|andacht|novene|gebet|taizé|lobpreis|vigil|wallfahrt|friedens/.test(s))r.push("r");
+  if(/vesper|laudes|komplet|mittagshore|evensong|abendlob/.test(s))r.push("h");
+  if(w)r.push("w");
+  if(!r.length){
+    if(/konzert|musik und literatur|basar|elternabend|café|bewegung|orange day|mietergewerk|bibelfrühst|seniorennachm|zeit für mich|atem\.pause|meditation|gemeinsam in stille|denken|lectio|katechese|agape|segnung der advent|gebetskreis/.test(s))r.push("o");
+    else if(/gottesdienst|feier|kinderkirche|trauer/.test(s))r.push("g");
+    else r.push("o");
+  }
+  return r;
+}
+function cleanName(n,addr){
+  n=n.replace(/^[-\s]+/,"").replace(/\s+/g," ").trim();
+  var odd=/^(Kleiner Saal|Chorkapelle|der Neuen Kirche|Allerheiligen|Franziskussaal|Sebastianskapelle|Nikolauskirche|Winthirkirche|Bürgersaalkirche|St\. Johann Baptist|Maria-Stadler-Haus|Klinikum rechts der Isar|im .*|Seniorenresidenz.*)$/i.test(n);
+  if(odd){var m=/\d{5}\s+(.+)$/.exec(addr||"");if(m)n+=" · "+m[1]}
+  return n.replace("der Neuen Kirche","Neue Kirche");
+}
+// Web-Mercator, Einheitsquadrat
+function proj(lat,lon){
+  var s=Math.sin(lat*Math.PI/180);
+  return[(lon+180)/360,0.5-Math.log((1+s)/(1-s))/(4*Math.PI)];
+}
+function toScr(p){return[W/2+(p[0]-view.x)*view.k,H/2+(p[1]-view.y)*view.k]}
+function css(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()}
+
+// Kacheln
+var tiles={},rq=0;
+function redraw(){if(rq)return;rq=requestAnimationFrame(function(){rq=0;draw()})}
+function tile(z,x,y){
+  var key=z+"/"+x+"/"+y,t=tiles[key];
+  if(t)return t;
+  t=tiles[key]=new Image();t.loaded=false;
+  t.onload=function(){t.loaded=true;redraw()};
+  t.src="https://tile.openstreetmap.org/"+key+".png";
+  return t;
+}
+function drawTiles(){
+  var z=Math.round(Math.log(view.k/256)/Math.LN2);z=Math.max(8,Math.min(18,z));
+  var n=Math.pow(2,z),size=view.k/n;
+  var x0=Math.floor((view.x-W/2/view.k)*n),x1=Math.floor((view.x+W/2/view.k)*n);
+  var y0=Math.floor((view.y-H/2/view.k)*n),y1=Math.floor((view.y+H/2/view.k)*n);
+  for(var x=x0;x<=x1;x++)for(var y=y0;y<=y1;y++){
+    if(x<0||y<0||x>=n||y>=n)continue;
+    var t=tile(z,x,y);if(!t.loaded)continue;
+    var s=toScr([x/n,y/n]);
+    ctx.drawImage(t,Math.round(s[0]),Math.round(s[1]),Math.ceil(size)+1,Math.ceil(size)+1);
+  }
+  if(dark&&dark.matches){ctx.fillStyle="rgba(24,20,14,.55)";ctx.fillRect(0,0,W,H)}
+}
+
+function build(){
+  var from=S.from,to=S.to,d=S.day,evOf={};
+  D.events.forEach(function(e){
+    if(e[1]!==d)return;
+    var st=mins(e[2]);if(st<from||st>to)return;
+    var ty=D.types[e[4]],hit=false;
+    for(var j=0;j<ty.length;j++)if(S.on[ty[j]]){hit=true;break}
+    if(!hit)return;
+    (evOf[e[0]]=evOf[e[0]]||[]).push(e);
+  });
+  PINS=[];
+  Object.keys(evOf).forEach(function(k){
+    var pl=D.places[k],evs=evOf[k].sort(function(a,b){return a[2]-b[2]});
+    var best="o",bp=99;
+    evs.forEach(function(e){D.types[e[4]].forEach(function(t){if(S.on[t]){var p=PRIO.indexOf(t);if(p<bp){bp=p;best=t}}})});
+    PINS.push({pi:+k,p:proj(pl[1],pl[2]),evs:evs,type:best,x:0,y:0});
+  });
+  document.getElementById('count').textContent=PINS.length+" Kirchen · "+PINS.reduce(function(a,p){return a+p.evs.length},0)+" Termine";
+  var msg=document.getElementById('msg');
+  msg.hidden=PINS.length>0;msg.textContent="Keine Gottesdienste in diesem Zeitfenster.";
+  if(S.sel>=0&&!PINS.some(function(p){return p.pi===S.sel}))closePanel();
+  if(!moved)fit();
+  draw();
+  if(S.sel>=0)openPanel(S.sel);
+}
+function fit(){
+  var pts=PINS.map(function(p){return p.p}).concat([proj(HOME[0],HOME[1])]);
+  var x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;
+  pts.forEach(function(p){x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])});
+  var w=Math.max(x1-x0,1e-5),h=Math.max(y1-y0,1e-5);
+  var k=Math.min((W-80)/w,(H-90)/h);
+  view.k=Math.max(KMIN*8,Math.min(k,KMIN*512));
+  view.x=(x0+x1)/2;view.y=(y0+y1)/2-12/view.k;
+}
+function pinPath(x,y,r){
+  ctx.beginPath();var cy=y-r*1.9;
+  ctx.moveTo(x,y);
+  ctx.bezierCurveTo(x-r*.35,y-r*.85,x-r,cy+r*.9,x-r,cy);
+  ctx.arc(x,cy,r,Math.PI,0);
+  ctx.bezierCurveTo(x+r,cy+r*.9,x+r*.35,y-r*.85,x,y);
+  ctx.closePath();
+}
+function draw(){
+  if(!W||!D)return;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle=css('--map');ctx.fillRect(0,0,W,H);
+  drawTiles();
+  var h=toScr(proj(HOME[0],HOME[1]));
+  ctx.fillStyle=css('--home');ctx.beginPath();ctx.arc(h[0],h[1],6,0,7);ctx.fill();
+  ctx.strokeStyle="#fff";ctx.lineWidth=2.2;ctx.stroke();
+  ctx.font="600 11px system-ui,sans-serif";ctx.textAlign="left";ctx.textBaseline="middle";
+  ctx.lineWidth=3;ctx.strokeStyle="rgba(255,255,255,.9)";ctx.strokeText("Zuhause",h[0]+10,h[1]);
+  ctx.fillStyle="#1f6f5c";ctx.fillText("Zuhause",h[0]+10,h[1]);
+  PINS.forEach(function(p){var s=toScr(p.p);p.x=s[0];p.y=s[1]});
+  var order=PINS.slice().sort(function(a,b){return a.y-b.y});
+  order.forEach(function(p){
+    if(p.x<-20||p.x>W+20||p.y<-10||p.y>H+40)return;
+    var act=(p.pi===S.sel||p.pi===S.hover),r=act?11:9;
+    ctx.save();ctx.shadowColor="rgba(0,0,0,.35)";ctx.shadowBlur=4;ctx.shadowOffsetY=1.5;
+    pinPath(p.x,p.y,r);ctx.fillStyle=css('--c-'+p.type);ctx.fill();ctx.restore();
+    pinPath(p.x,p.y,r);ctx.strokeStyle=act?"#000":"rgba(255,255,255,.95)";ctx.lineWidth=act?2:1.3;ctx.stroke();
+    var cy=p.y-r*1.9;
+    if(p.evs.length>1){ctx.fillStyle="#fff";ctx.font="700 "+(r<10?9:10)+"px system-ui,sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillText(p.evs.length>99?"99+":String(p.evs.length),p.x,cy+.5)}
+    else{ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(p.x,cy,r*.34,0,7);ctx.fill()}
+  });
+}
+function hit(mx,my){
+  var best=null,bd=1e9;
+  PINS.forEach(function(p){
+    var cy=p.y-17,d=Math.hypot(mx-p.x,my-cy);
+    if(d<=13&&d<bd){bd=d;best=p}
+  });
+  return best;
+}
+function resize(){
+  var r=box.getBoundingClientRect();W=r.width;H=r.height;dpr=window.devicePixelRatio||1;
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+  if(D){if(!moved)fit();draw()}
+}
+var ptrs={},drag=null,pinch=null,moveDist=0;
+function zoomAt(f,mx,my){
+  var nk=Math.max(KMIN,Math.min(KMAX,view.k*f));f=nk/view.k;
+  view.x+=(mx-W/2)/view.k*(1-1/f);view.y+=(my-H/2)/view.k*(1-1/f);view.k=nk;moved=true;draw();
+}
+cv.addEventListener('pointerdown',function(e){
+  cv.setPointerCapture(e.pointerId);var r=cv.getBoundingClientRect();
+  ptrs[e.pointerId]=[e.clientX-r.left,e.clientY-r.top];moveDist=0;
+  var ids=Object.keys(ptrs);
+  if(ids.length===2){var a=ptrs[ids[0]],b=ptrs[ids[1]];pinch={d:Math.hypot(a[0]-b[0],a[1]-b[1])};drag=null}
+  else{drag={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y}}
+  cv.classList.add('drag');
+});
+cv.addEventListener('pointermove',function(e){
+  var r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  if(ptrs[e.pointerId]){
+    ptrs[e.pointerId]=[mx,my];
+    var ids=Object.keys(ptrs);
+    if(ids.length===2&&pinch){
+      var a=ptrs[ids[0]],b=ptrs[ids[1]],d=Math.hypot(a[0]-b[0],a[1]-b[1]);
+      zoomAt(d/pinch.d,(a[0]+b[0])/2,(a[1]+b[1])/2);pinch.d=d;moveDist=99;
+    }else if(drag){
+      var dx=e.clientX-drag.x,dy=e.clientY-drag.y;moveDist=Math.max(moveDist,Math.hypot(dx,dy));
+      if(moveDist>4){view.x=drag.vx-dx/view.k;view.y=drag.vy-dy/view.k;moved=true;draw();hideTip()}
+    }
+    return;
+  }
+  if(e.pointerType==='mouse'){
+    var p=hit(mx,my),id=p?p.pi:-1;
+    if(id!==S.hover){S.hover=id;cv.style.cursor=p?"pointer":"grab";draw()}
+    if(p)showTip(p,mx,my);else hideTip();
+  }
+});
+function up(e){
+  var was=ptrs[e.pointerId];delete ptrs[e.pointerId];
+  if(Object.keys(ptrs).length<2)pinch=null;
+  if(!Object.keys(ptrs).length){cv.classList.remove('drag');
+    if(was&&moveDist<=4&&e.type==='pointerup'){var p=hit(was[0],was[1]);if(p){S.sel=p.pi;openPanel(p.pi);hideTip();draw()}else{closePanel()}}
+    drag=null}
+}
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+cv.addEventListener('pointerleave',function(e){if(e.pointerType==='mouse'){S.hover=-1;hideTip();draw()}});
+cv.addEventListener('wheel',function(e){e.preventDefault();var r=cv.getBoundingClientRect();zoomAt(Math.exp(-e.deltaY*0.0016),e.clientX-r.left,e.clientY-r.top)},{passive:false});
+document.getElementById('zi').onclick=function(){zoomAt(1.5,W/2,H/2)};
+document.getElementById('zo').onclick=function(){zoomAt(1/1.5,W/2,H/2)};
+document.getElementById('zf').onclick=function(){moved=false;fit();draw()};
+
+var tip=document.getElementById('tip');
+function pname(i){var pl=D.places[i];return cleanName(pl[0],pl[3])}
+function showTip(p,mx,my){
+  var e=p.evs[0],more=p.evs.length-1;
+  tip.innerHTML="<b>"+esc(pname(p.pi))+"</b><span>"+hm(e[2])+" · "+esc(D.titles[e[4]])+(more>0?" · +"+more+" weitere":"")+"</span>";
+  tip.hidden=false;
+  var tw=tip.offsetWidth,th=tip.offsetHeight,x=mx+14,y=my-th-24;
+  if(x+tw>W-6)x=mx-tw-14;if(y<6)y=my+14;
+  tip.style.left=Math.max(6,x)+"px";tip.style.top=y+"px";
+}
+function hideTip(){tip.hidden=true}
+
+var panel=document.getElementById('panel');
+function closePanel(){S.sel=-1;panel.hidden=true;draw()}
+function openPanel(i){
+  var pl=D.places[i],par=D.parishes[pl[4]]||["","",""],pv=(par[1]||"").trim();
+  var p=PINS.filter(function(x){return x.pi===i})[0];if(!p)return;
+  var parLine="";
+  if(par[0]){
+    var nm=esc(par[0]);if(par[2])nm='<a href="'+esc(par[2])+'" target="_blank" rel="noopener">'+nm+' ↗</a>';
+    parLine='<div class="pf">Pfarrei: '+nm+(pv?' <span style="color:var(--mut)">· '+esc(pv)+'</span>':'')+'</div>';
+  }
+  var gm="https://www.google.com/maps/search/?api=1&query="+pl[1]+","+pl[2];
+  var li=p.evs.map(function(e){
+    var ty=D.types[e[4]].filter(function(t){return S.on[t]});
+    if(!ty.length)ty=D.types[e[4]];
+    var tg=ty.map(function(t){return '<span style="--c:var(--c-'+t+')"><i class="dot"></i>'+LBL[t]+'</span>'}).join(" ");
+    var note=e[5]?'<div class="nt">'+esc(e[5].length>150?e[5].slice(0,150)+"…":e[5])+'</div>':'';
+    return '<li><time>'+hm(e[2])+'</time><div class="t">'+esc(D.titles[e[4]])+'<div class="tg">'+tg+(e[3]?' · bis '+hm(e[3]):'')+'</div></div>'+note+'</li>';
+  }).join("");
+  panel.innerHTML='<div class="ph"><button class="x" aria-label="Schließen">×</button><h2>'+esc(pname(i))+'</h2><div class="ad">'+esc(pl[3])+'</div>'+parLine+'<a class="gm" href="'+gm+'" target="_blank" rel="noopener">In Google Maps öffnen</a></div><ul class="ls">'+li+'</ul>';
+  panel.querySelector('.x').onclick=closePanel;
+  panel.hidden=false;S.sel=i;
+}
+
+function setupUI(){
+  var base=new Date(D.base+"T12:00:00");
+  var dbox=document.getElementById('days'),now=new Date();
+  var todayIdx=Math.round((new Date(now.getFullYear(),now.getMonth(),now.getDate())-new Date(base.getFullYear(),base.getMonth(),base.getDate()))/864e5);
+  var maxDay=0;D.events.forEach(function(e){if(e[1]>maxDay)maxDay=e[1]});
+  var isToday=todayIdx>=0&&todayIdx<=maxDay;
+  S.day=isToday?todayIdx:0;
+  var t1=document.getElementById('t1'),t2=document.getElementById('t2');
+  function rd(){var a=t1.value.split(":"),b=t2.value.split(":");S.from=(+a[0])*60+(+a[1]||0);S.to=(+b[0])*60+(+b[1]||0)}
+  function setTimes(today){
+    var f="00:00";
+    if(today){var n=new Date();f=pad(n.getHours())+":"+pad(n.getMinutes())}
+    t1.value=f;t2.value="23:59";rd();
+  }
+  function sync(){[].forEach.call(dbox.children,function(c){c.setAttribute('aria-pressed',+c.dataset.i===S.day)})}
+  for(var i=0;i<=maxDay;i++){
+    var dt=new Date(base.getTime()+i*864e5);
+    var b=document.createElement('button');b.className='day';b.dataset.i=i;
+    b.innerHTML=(i===todayIdx?"Heute":WD[dt.getDay()])+"<small>"+dt.getDate()+"."+(dt.getMonth()+1)+".</small>";
+    b.onclick=function(){S.day=+this.dataset.i;setTimes(S.day===todayIdx);sync();build()};
+    dbox.appendChild(b);
+  }
+  t1.onchange=t2.onchange=function(){rd();build()};
+  setTimes(isToday);sync();
+  var cb=document.getElementById('chips');
+  CATS.forEach(function(c){
+    S.on[c[0]]=true;
+    var b=document.createElement('button');b.className='chip';b.style.setProperty('--c','var(--c-'+c[0]+')');
+    b.setAttribute('aria-pressed','true');b.innerHTML='<i></i>'+c[1];
+    b.onclick=function(){S.on[c[0]]=!S.on[c[0]];b.setAttribute('aria-pressed',S.on[c[0]]);build()};
+    cb.appendChild(b);
+  });
+  document.getElementById('sub').textContent="Stand "+D.generated.split("-").reverse().join(".")+(D.time?", "+D.time+" Uhr":"")+" · Quelle: Gottesdienstkalender des Erzbistums";
+}
+
+fetch('data.json?v='+Date.now()).then(function(r){return r.json()}).then(function(d){
+  D=d;D.types=D.titles.map(classify);
+  setupUI();resize();build();
+}).catch(function(){document.getElementById('msg').textContent="Daten konnten nicht geladen werden."});
+window.addEventListener('resize',resize);
+if(dark)dark.addEventListener('change',draw);
+})();
+</script>
+</body></html>
