@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Holt die Gottesdienst-Termine vom Erzbistum München und Freising und baut data.json."""
-import json, math, re, sys, time, urllib.parse, urllib.request
+import json, math, re, sys, time, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 FEED = "https://www.erzbistum-muenchen.de/worships/api/3ede8334e03c206b55f178bd210e5c3c"
 ARC = "https://services1.arcgis.com/fX1IStQAZuWD7MLP/arcgis/rest/services/"
 DAYS_AHEAD = 14
+# Feste Korrekturen, wenn die Bistumskarte einen veralteten Link liefert
+URL_OVERRIDES = {
+    "München-St. Peter": "https://alterpeter.de/",
+}
 UA = {"User-Agent": "Mozilla/5.0 (compatible; gottesdienst-karte; +https://github.com/DoubleAA013/gottesdienst-karte)"}
 
 
@@ -123,7 +127,7 @@ strip_re = re.compile(r"^(Pfarrkirche|Nebenkirche|Filialkirche|Kuratiekirche|Wal
 strip = lambda n: re.sub(r"\s+", " ", strip_re.sub("", n)).strip()
 dkm = lambda la1, ln1, la2, ln2: math.hypot((ln1 - ln2) * KX, (la1 - la2) * KY)
 
-places, pl, parish_arr, pa = [], {}, [], {}
+places, pl, parish_arr, pa, parish_pv = [], {}, [], {}, {}
 matched = 0
 for i in kept:
     L = i["location"]
@@ -145,7 +149,8 @@ for i in kept:
             pv = best.get("PVNAME")
             label = ((pv_typ.get(pv) or "PV") + " " + pv) if pv and pv != key else ""
             pa[key] = len(parish_arr)
-            parish_arr.append([key, label, url])
+            parish_arr.append([key, label, URL_OVERRIDES.get(key, url)])
+            parish_pv[key] = pv_url.get(pv) or ""
         pi = pa[key]
     else:
         key = "~" + (i.get("organizer") or "")
@@ -157,6 +162,32 @@ for i in kept:
     addr = ", ".join(x for x in [L.get("address_line_one"), " ".join(x for x in [L.get("postal_code"), L.get("city")] if x)] if x)
     places.append([strip(L["name"]), round(la, 5), round(ln, 5), addr, pi])
 print("Kirchen:", len(places), "Pfarrei zugeordnet:", matched)
+
+
+# Tote Links aussortieren: erst Pfarrverbands-Link versuchen, sonst leer lassen
+def alive(url):
+    try:
+        req = urllib.request.Request(url, headers=UA)
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return r.status < 400
+    except urllib.error.HTTPError as e:
+        return e.code not in (404, 410)
+    except Exception:
+        return False
+
+
+from concurrent.futures import ThreadPoolExecutor
+check = {u for p in parish_arr for u in [p[2], parish_pv.get(p[0], "")] if u}
+with ThreadPoolExecutor(8) as ex:
+    ok = dict(zip(check, ex.map(alive, check)))
+dead = 0
+for p in parish_arr:
+    if p[2] and not ok.get(p[2]):
+        dead += 1
+        alt = parish_pv.get(p[0], "")
+        print("Toter Link:", p[0], p[2], "->", alt if alt and ok.get(alt) and alt != p[2] else "(keiner)")
+        p[2] = alt if alt and ok.get(alt) and alt != p[2] else ""
+print("Tote Links ersetzt/entfernt:", dead)
 
 # 4) Termine kompakt
 titles, ti, ev = [], {}, []
