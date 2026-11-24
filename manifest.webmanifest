@@ -3,8 +3,8 @@
   "short_name": "Gottesdienste",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#f6f3ee",
-  "theme_color": "#8c1d2f",
+  "background_color": "#F5EFE3",
+  "theme_color": "#102B46",
   "icons": [
     {
       "src": "icon-512.png",
